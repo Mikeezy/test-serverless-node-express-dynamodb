@@ -1,0 +1,65 @@
+org: anonymousghost113
+app: test-aws-node-express-dynamo
+service: test-aws-node-express-dynamo
+
+frameworkVersion: '2'
+
+custom:
+  categoriesTableName: 'categories-table-${self:provider.stage}'
+  dynamodb:
+      stages:
+         - ${opt:stage, 'dev'}
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: '20201221'
+  stage: ${opt:stage, 'dev'}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [ UsersTable, Arn ]
+  environment:
+    CATEGORIES_TABLE: ${self:custom.categoriesTableName}
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
+
+functions:
+  category_api:
+    handler: src/modules/category/handler.handler
+    events:
+      - http:
+          path: /
+          method: ANY
+          cors: true
+      - http:
+          path: /{proxy+}
+          method: ANY
+          cors: true
+
+resources:
+  Resources:
+    UsersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.categoriesTableName}
